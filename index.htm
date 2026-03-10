@@ -217,6 +217,27 @@
             z-index: 100; /* 確保覆蓋在原本網頁之上 */
         }
         .nst-active { display: flex !important; }
+        
+        /* --- 數字急轉彎 新增樣式 (按鈕排版、隱藏、特效) --- */
+        .nst-menu-row { display: flex; gap: 10px; justify-content: center; margin-bottom: 15px; flex-wrap: wrap; width: 100%; max-width: 600px; }
+        .nst-btn-small { padding: 10px 15px; font-size: 1.1rem; width: auto; flex-grow: 1; }
+        .nst-custom-row { align-items: center; }
+        #nst-custom-time { 
+            padding: 10px; font-size: 1.1rem; border-radius: 5px; border: 1px solid var(--neon-cyan); 
+            background: rgba(0,0,0,0.5); color: white; width: 200px; text-align: center;
+        }
+        .nst-hidden { display: none !important; }
+        
+        /* 提示發光特效 */
+        .nst-hint-glow { 
+            box-shadow: 0 0 20px 5px rgba(241, 196, 15, 0.8) !important; 
+            animation: nstPulseGlow 1s infinite alternate; 
+            border: 2px solid #f1c40f !important;
+        }
+        @keyframes nstPulseGlow { 
+            from { box-shadow: 0 0 10px 2px rgba(241, 196, 15, 0.8); } 
+            to { box-shadow: 0 0 25px 8px rgba(241, 196, 15, 1); } 
+        }
 
         #nst-board {
             display: flex;
@@ -322,6 +343,8 @@ function nstNavTo(screenId) {
 let nst_aiIntervalTime = 4000;
 let nst_aiTimer = null;
 let nst_isGameOver = false;
+let nst_isTutorial = false;
+let nst_hintTimer = null;
 let nst_centerCard = null;
 let nst_playerState = { hand: [], deck: [] };
 let nst_aiState = { hand: [], deck: [] };
@@ -343,6 +366,8 @@ function nstGenerateDeck() {
 }
 
 function startNST(difficulty) {
+    nst_isTutorial = false;
+    document.querySelector('.nst-ai-area').classList.remove('nst-hidden'); // 顯示電腦區域
     nst_aiIntervalTime = difficulty;
     nst_isGameOver = false;
     
@@ -385,6 +410,7 @@ function nstPlayerDraw() {
     if (nst_isGameOver || nst_playerState.hand.length >= 7 || nst_playerState.deck.length === 0) return;
     nst_playerState.hand.push(nst_playerState.deck.shift());
     updateNSTUI();
+    checkNSTDeadlock(); // 每次抽牌後檢查死局
 }
 
 function nstPlayerPlay(handIndex) {
@@ -394,7 +420,10 @@ function nstPlayerPlay(handIndex) {
         nst_centerCard = nst_playerState.hand.splice(handIndex, 1)[0];
         checkNSTWinCondition();
         updateNSTUI();
-        if(!nst_isGameOver) triggerNSTAI(); 
+        checkNSTDeadlock(); // 每次出牌後檢查死局
+        
+        // 如果遊戲還沒結束且不是教學模式，重啟電腦計時器
+        if(!nst_isGameOver && !nst_isTutorial) triggerNSTAI(); 
     }
 }
 
@@ -402,9 +431,11 @@ function nstPlayerReshuffle() {
     if (nst_isGameOver) return;
     let targets = nstGetValidTargets(nst_centerCard);
     let hasValid = nst_playerState.hand.some(c => c.num === targets[0] || c.num === targets[1]);
+    
     if (nst_playerState.hand.length === 7 || (nst_playerState.deck.length === 0 && !hasValid)) {
         nstReshuffleLogic(nst_playerState);
         updateNSTUI();
+        checkNSTDeadlock(); // 每次重洗後檢查死局
     }
 }
 
@@ -426,7 +457,8 @@ function triggerNSTAI() {
 }
 
 function nstAiAction() {
-    if (nst_isGameOver) return;
+    if (nst_isGameOver || nst_isTutorial) return;
+    
     let played = false;
     for (let i = 0; i < nst_aiState.hand.length; i++) {
         if (nstIsValidPlay(nst_aiState.hand[i], nst_centerCard)) {
@@ -438,15 +470,22 @@ function nstAiAction() {
     if (played) {
         checkNSTWinCondition();
         updateNSTUI();
+        checkNSTDeadlock(); // AI出牌後檢查死局
         if (!nst_isGameOver) triggerNSTAI();
     } else {
         if (nst_aiState.hand.length < 7 && nst_aiState.deck.length > 0) {
             nst_aiState.hand.push(nst_aiState.deck.shift());
-            updateNSTUI(); triggerNSTAI();
+            updateNSTUI();
+            checkNSTDeadlock(); // AI抽牌後檢查死局
+            triggerNSTAI();
         } else if (nst_aiState.hand.length === 7 || nst_aiState.deck.length === 0) {
             nstReshuffleLogic(nst_aiState);
-            updateNSTUI(); triggerNSTAI();
+            updateNSTUI();
+            checkNSTDeadlock(); // AI重洗後檢查死局
+            triggerNSTAI();
         } else {
+            // AI卡住無法動彈時，也要檢查是否符合死局條件
+            checkNSTDeadlock(); 
             triggerNSTAI();
         }
     }
@@ -454,6 +493,16 @@ function nstAiAction() {
 
 function checkNSTWinCondition() {
     let playerTotal = nst_playerState.hand.length + nst_playerState.deck.length;
+    
+    // 如果是教學模式，只判定玩家是否出完牌
+    if (nst_isTutorial) {
+        if (playerTotal === 0) {
+            endNSTGame("🎉 恭喜完成教學模式！🎉");
+        }
+        return; // 直接返回，不執行下方電腦勝出的判定
+    }
+
+    // 正常對戰模式的判定
     let aiTotal = nst_aiState.hand.length + nst_aiState.deck.length;
     if (playerTotal === 0) endNSTGame("🎉 玩家獲勝！🎉");
     else if (aiTotal === 0) endNSTGame("🤖 電腦獲勝！🤖");
@@ -515,7 +564,134 @@ function updateNSTUI() {
     btnReshuffle.disabled = !(nst_playerState.hand.length === 7 || (nst_playerState.deck.length === 0 && !pHasValid));
     btnReshuffle.style.borderColor = btnReshuffle.disabled ? "#4a5568" : "#00f0ff";
     btnReshuffle.style.color = btnReshuffle.disabled ? "#718096" : "#00f0ff";
+    
+    const originalUpdateNSTUI = updateNSTUI;
+    updateNSTUI = function() {
+    originalUpdateNSTUI();
+    resetNSTHintTimer(); // 每次畫面更新，重新計算5秒提示
+};
 }
+
+function startCustomNSTPopup() {
+    // 使用 prompt 讓玩家輸入秒數
+    let inputStr = prompt("請輸入電腦每隔多少秒出牌/抽牌一次 (例如: 1.5):", "1.5");
+    if (inputStr === null) return; // 玩家按下取消
+    
+    let seconds = parseFloat(inputStr);
+    if (isNaN(seconds) || seconds <= 0) { 
+        alert('請輸入有效的秒數 (大於 0)'); 
+        return; 
+    }
+    
+    // 將秒數轉換為毫秒並開始遊戲
+    startNST(seconds * 1000);
+}
+
+function startNSTTutorial() {
+    nst_isTutorial = true;
+    nst_isGameOver = false;
+    let allCards = nstGenerateDeck();
+    
+    // 洗牌
+    for (let i = allCards.length - 1; i > 0; i--) {
+        let j = Math.floor(Math.random() * (i + 1));
+        [allCards[i], allCards[j]] = [allCards[j], allCards[i]];
+    }
+    
+    // 教學模式：抽取 1 張中央牌，以及 20 張玩家牌 (總數20張)
+    nst_centerCard = allCards.splice(0, 1)[0];
+    nst_playerState.deck = allCards.splice(0, 20); 
+    
+    // 清空電腦手牌與牌庫
+    nst_aiState.deck = [];
+    nst_aiState.hand = [];
+    
+    // 玩家抽起始 5 張手牌
+    nst_playerState.hand = nst_playerState.deck.splice(0, 5);
+
+    document.querySelector('.nst-ai-area').classList.add('nst-hidden');
+    nstNavTo('nst-game');
+    updateNSTUI();
+    
+    // 重置並啟動提示計時器
+    if (typeof resetNSTHintTimer === 'function') resetNSTHintTimer();
+}
+
+// 提示系統計時器
+function resetNSTHintTimer() {
+    clearTimeout(nst_hintTimer);
+    if (nst_isTutorial && !nst_isGameOver) {
+        nst_hintTimer = setTimeout(showNSTHints, 5000); // 5秒未出牌顯示提示
+    }
+}
+
+function showNSTHints() {
+    if (nst_isGameOver || !nst_isTutorial) return;
+    let targets = nstGetValidTargets(nst_centerCard);
+    let handEls = document.getElementById('nst-player-hand').children;
+    nst_playerState.hand.forEach((card, idx) => {
+        if (card.num === targets[0] || card.num === targets[1]) {
+            if (handEls[idx]) handEls[idx].classList.add('nst-hint-glow');
+        }
+    });
+}
+
+// 檢查是否雙方皆無牌可出且牌庫為空
+function checkNSTDeadlock() {
+    if (nst_isGameOver) return;
+
+    // 情況 1：絕對死局 (雙方「手牌+牌庫」所有的牌加起來，都沒有可以出的牌)
+    let pAllCards = [...nst_playerState.hand, ...nst_playerState.deck];
+    let pHasAnyValid = pAllCards.some(c => nstIsValidPlay(c, nst_centerCard));
+    
+    let aHasAnyValid = false;
+    if (!nst_isTutorial) {
+        let aAllCards = [...nst_aiState.hand, ...nst_aiState.deck];
+        aHasAnyValid = aAllCards.some(c => nstIsValidPlay(c, nst_centerCard));
+    }
+    let absoluteDeadlock = !pHasAnyValid && !aHasAnyValid;
+
+    // 情況 2：空牌庫卡死 (雙方牌庫皆為 0，且手牌都無法出，就算重洗也只會抽回同樣的牌)
+    let pHasValidHand = nst_playerState.hand.some(c => nstIsValidPlay(c, nst_centerCard));
+    let pEmptyDeckStuck = !pHasValidHand && nst_playerState.deck.length === 0;
+
+    let aEmptyDeckStuck = true; // 預設為 true 以兼容單人教學模式
+    if (!nst_isTutorial) {
+        let aHasValidHand = nst_aiState.hand.some(c => nstIsValidPlay(c, nst_centerCard));
+        aEmptyDeckStuck = !aHasValidHand && nst_aiState.deck.length === 0;
+    }
+
+    // 當發生任一死局情況時，系統強制介入救援！
+    if (absoluteDeadlock || (pEmptyDeckStuck && aEmptyDeckStuck)) {
+        console.log("🔄 偵測到死局，系統自動發放新牌救援！");
+        
+        // 生成一張必定能接續當前目標數字的牌
+        let targets = nstGetValidTargets(nst_centerCard);
+        let newTarget = Math.random() < 0.5 ? targets[0] : targets[1];
+        let newMod = Math.floor(Math.random() * 3) + 1;
+        nst_centerCard = { num: newTarget, mod: newMod };
+        
+        // 更新畫面，讓玩家與電腦看到新牌
+        updateNSTUI();
+    }
+}
+
+// 覆蓋玩家重洗，加入死局檢查
+const originalNstPlayerReshuffle = nstPlayerReshuffle;
+nstPlayerReshuffle = function() {
+    originalNstPlayerReshuffle();
+    checkNSTDeadlock(); 
+};
+
+// 覆蓋電腦行動，加入死局檢查
+const originalNstAiAction = nstAiAction;
+nstAiAction = function() {
+    originalNstAiAction();
+    if (nst_aiState.hand.length === 7 || nst_aiState.deck.length === 0) {
+        checkNSTDeadlock();
+    }
+};
+
 </script>
 </head>
 <body>
@@ -598,6 +774,14 @@ function updateNSTUI() {
             <button onclick="startGame('advanced')">🔥 高級</button>
             <button onclick="startGame('elite')">👑 達人</button>
         </div>
+        
+        <div id="diff-buttons-math" style="display: none;">
+                <button onclick="startGame('math_beginner')">🌱 10以內加減</button>
+                <button onclick="startGame('math_intermediate')">⭐ 20以內加減</button>
+                <button onclick="startGame('math_advanced')">🔥 兩位數相加或相減</button>
+                <button onclick="startGame('math_elite')">👑 乘數表</button>
+                <button onclick="startGame('math_division')" style="border-color: #00f0ff; color: #00f0ff;">➗ 除法(包含餘數)</button>
+            </div>
         
         <div id="diff-buttons-reaction" style="display: none;">
             <button onclick="startGame('beginner')">🌱 初級 (綜合圖案)</button>
@@ -788,23 +972,36 @@ function updateNSTUI() {
     }
     
     function selectGame(mode) {
-        currentGameMode = mode;
-        document.getElementById('diff-buttons-standard').style.display = 'none';
-        document.getElementById('diff-buttons-reaction').style.display = 'none';
-        document.getElementById('diff-buttons-direction').style.display = 'none';
-        document.getElementById('diff-buttons-vocab').style.display = 'none';
-        document.getElementById('diff-buttons-make24').style.display = 'none';
-        document.getElementById('diff-buttons-highcard').style.display = 'none';
+            currentGameMode = mode;
+            document.getElementById('diff-buttons-standard').style.display = 'none';
+            document.getElementById('diff-buttons-reaction').style.display = 'none';
+            document.getElementById('diff-buttons-direction').style.display = 'none';
+            document.getElementById('diff-buttons-vocab').style.display = 'none';
+            document.getElementById('diff-buttons-make24').style.display = 'none';
+            document.getElementById('diff-buttons-highcard').style.display = 'none';
+            
+            // 加入新的 diff-buttons-math 隱藏邏輯
+            let mathDiffMenu = document.getElementById('diff-buttons-math');
+            if(mathDiffMenu) mathDiffMenu.style.display = 'none';
 
-        if (mode === 'dice' || mode === 'math' || mode === 'flash-memory' || mode === 'random-code-memory') {
-            document.getElementById('diff-buttons-standard').style.display = 'block';
-        } else if (mode === 'reaction-match') { document.getElementById('diff-buttons-reaction').style.display = 'block'; } 
-        else if (mode === 'reaction-direction') { document.getElementById('diff-buttons-direction').style.display = 'block'; } 
-        else if (mode === 'vocab-memory') { document.getElementById('diff-buttons-vocab').style.display = 'block'; }
-        else if (mode === 'make24') { document.getElementById('diff-buttons-make24').style.display = 'block'; }
-        else if (mode === 'highcard') { document.getElementById('diff-buttons-highcard').style.display = 'block'; }
-        nav('screen-difficulty');
-    }
+            if (mode === 'dice' || mode === 'flash-memory' || mode === 'random-code-memory') {
+                document.getElementById('diff-buttons-standard').style.display = 'block';
+            } else if (mode === 'math') {
+                // 速心算顯示專屬選單
+                document.getElementById('diff-buttons-math').style.display = 'block';
+            } else if (mode === 'reaction-match') {
+                document.getElementById('diff-buttons-reaction').style.display = 'block';
+            } else if (mode === 'reaction-direction') {
+                document.getElementById('diff-buttons-direction').style.display = 'block';
+            } else if (mode === 'vocab-memory') {
+                document.getElementById('diff-buttons-vocab').style.display = 'block';
+            } else if (mode === 'make24') {
+                document.getElementById('diff-buttons-make24').style.display = 'block';
+            } else if (mode === 'highcard') {
+                document.getElementById('diff-buttons-highcard').style.display = 'block';
+            }
+            nav('screen-difficulty');
+        }
 
     function startGame(difficulty) {
         if (difficulty === 'ranked') {
@@ -1346,13 +1543,122 @@ function updateNSTUI() {
     function generateDiceQuestion(diff) { let count = (diff === 'beginner') ? 2 : (diff === 'intermediate') ? 3 : (diff === 'advanced') ? 4 : 5; let total = 0, str = '<span class="dice-display">'; for (let i = 0; i < count; i++) { let roll = Math.floor(Math.random() * 6) + 1; total += roll; str += diceFaces[roll - 1] + ' '; } return { text: str + '</span>', answer: total }; }
     
     function generateMathQuestion(diff) {
-        let a, b, c, ans, text;
-        if (diff === 'beginner') { if (Math.random() > 0.5) { a = Math.floor(Math.random() * 9) + 1; b = Math.floor(Math.random() * (10 - a)) + 1; ans = a + b; text = `${a} + ${b}`; } else { a = Math.floor(Math.random() * 10) + 1; b = Math.floor(Math.random() * a) + 1; ans = a - b; text = `${a} - ${b}`; } } 
-        else if (diff === 'intermediate') { if (Math.random() > 0.5) { a = Math.floor(Math.random() * 19) + 1; b = Math.floor(Math.random() * (20 - a)) + 1; ans = a + b; text = `${a} + ${b}`; } else { a = Math.floor(Math.random() * 20) + 1; b = Math.floor(Math.random() * a) + 1; ans = a - b; text = `${a} - ${b}`; } } 
-        else if (diff === 'advanced') { a = Math.floor(Math.random() * 8) + 2; b = Math.floor(Math.random() * 8) + 2; ans = a * b; text = `${a} × ${b}`; } 
-        else { let type = Math.floor(Math.random() * 3); if (type === 0) { a = Math.floor(Math.random() * 8) + 2; b = Math.floor(Math.random() * 8) + 2; c = Math.floor(Math.random() * 20) + 1; ans = a * b + c; text = `${a} × ${b} + ${c}`; } else if (type === 1) { b = Math.floor(Math.random() * 8) + 2; let k = Math.floor(Math.random() * 9) + 1; a = b * k; c = Math.floor(Math.random() * 10) + 1; ans = k + c; text = `${a} ÷ ${b} + ${c}`; } else { a = Math.floor(Math.random() * 20) + 1; b = Math.floor(Math.random() * 8) + 2; c = Math.floor(Math.random() * 8) + 2; ans = a + b * c; text = `${a} + ${b} × ${c}`; } }
-        return { text: text, answer: ans };
-    }
+            let a, b, op, ans, text;
+            let optsArr = [];
+            let fakes = new Set(); // 利用 Set 自動排除重複的選項
+
+            // 輔助函數：用於將選項陣列洗牌打亂
+            const shuffleArray = (arr) => arr.sort(() => Math.random() - 0.5);
+
+            if (diff === 'math_beginner') { 
+                // 10以內加減 (例子: 5+7=12 -> 11, 12, 13, 14)
+                op = Math.random() < 0.5 ? '+' : '-';
+                if (op === '+') {
+                    a = Math.floor(Math.random() * 9) + 1;
+                    b = Math.floor(Math.random() * (10 - a)) + 1;
+                } else {
+                    a = Math.floor(Math.random() * 10) + 1;
+                    b = Math.floor(Math.random() * a) + 1;
+                }
+                ans = op === '+' ? a + b : a - b;
+                text = `${a} ${op} ${b}`;
+                
+                // 誘答機制：產生包含答案的 4 個連續數字
+                let offset = Math.floor(Math.random() * 4); // 讓答案隨機出現在4個連續數字的哪個位置
+                let start = Math.max(0, ans - offset); // 確保不出現負數選項
+                for (let i = 0; i < 4; i++) fakes.add(start + i);
+                
+            } else if (diff === 'math_intermediate') { 
+                // 20以內加減 (例子: 16-9=7 -> 7, 8, 9, 10)
+                op = Math.random() < 0.5 ? '+' : '-';
+                if (op === '+') {
+                    a = Math.floor(Math.random() * 19) + 1; 
+                    b = Math.floor(Math.random() * (20 - a)) + 1; 
+                } else {
+                    a = Math.floor(Math.random() * 11) + 10; 
+                    b = Math.floor(Math.random() * a) + 1;   
+                }
+                ans = op === '+' ? a + b : a - b;
+                text = `${a} ${op} ${b}`;
+                
+                // 誘答機制：同樣產生包含答案的 4 個連續數字
+                let offset = Math.floor(Math.random() * 4);
+                let start = Math.max(0, ans - offset);
+                for (let i = 0; i < 4; i++) fakes.add(start + i);
+                
+            } else if (diff === 'math_advanced') { 
+                // 兩位數加減 (例子: 35+46=81 -> 81, 82, 91, 92)
+                op = Math.random() < 0.5 ? '+' : '-';
+                a = Math.floor(Math.random() * 90) + 10; // 10-99
+                b = Math.floor(Math.random() * 90) + 10; // 10-99
+                if (op === '-' && a < b) [a, b] = [b, a]; // 確保大減小
+                ans = op === '+' ? a + b : a - b;
+                text = `${a} ${op} ${b}`;
+                
+                // 誘答機制：答案, 個位+1(或-1), 十位+1(或-1), 十位和個位皆+1
+                let sign = Math.random() < 0.5 ? 1 : -1;
+                if (ans + sign * 11 < 0) sign = 1; // 避免出現負數選項
+                
+                fakes.add(ans);
+                fakes.add(ans + sign * 1);
+                fakes.add(ans + sign * 10);
+                fakes.add(ans + sign * 11);
+                
+            } else if (diff === 'math_elite') { 
+                // 乘數表 (例子: 6x7=42 -> 36, 42, 48, 49)
+                a = Math.floor(Math.random() * 8) + 2; // 2-9
+                b = Math.floor(Math.random() * 8) + 2; // 2-9
+                ans = a * b;
+                text = `${a} × ${b}`;
+                
+                // 誘答機制：a*(b-1) , a*b , a*(b+1) , (a+1)*b
+                fakes.add(ans);
+                if (b > 1) fakes.add(a * (b - 1));
+                fakes.add(a * (b + 1));
+                fakes.add((a + 1) * b);
+                
+                // 防呆：如果剛好是 2x2 或其他情況導致重複選項不足4個，補上其他合理錯算
+                if (a > 1) fakes.add((a - 1) * b);
+                fakes.add((a + 1) * (b + 1));
+                
+            } else if (diff === 'math_division') { 
+                // 除法(有餘數) (例子: 45/8=5...5 -> 4...5, 5...5, 5...6, 6...5)
+                let divisor = Math.floor(Math.random() * 8) + 2; // 2-9
+                let quotient = Math.floor(Math.random() * 8) + 2; // 2-9
+                let remainder = Math.floor(Math.random() * (divisor - 1)) + 1; // 1 到 divisor-1
+                
+                let dividend = quotient * divisor + remainder; 
+                text = `${dividend} ➗ ${divisor}`;
+                ans = `${quotient}...${remainder}`;
+                
+                // 誘答機制：直接放入答案，以及變化商數或餘數的選項
+                fakes.add(ans);
+                if (quotient > 1) fakes.add(`${quotient - 1}...${remainder}`); // 商少1
+                fakes.add(`${quotient}...${remainder + 1}`);                   // 餘多1 (直接加1，當作學生的常見失誤選項)
+                fakes.add(`${quotient + 1}...${remainder}`);                   // 商多1
+                
+                // 防呆：萬一不足4個 (極罕見)，補上餘數少1的選項
+                if (remainder > 1) fakes.add(`${quotient}...${remainder - 1}`);
+            }
+
+            // 取前 4 個獨立選項
+            optsArr = Array.from(fakes).slice(0, 4);
+            
+            // 安全機制：保證正確答案一定包含在裡面
+            if (!optsArr.includes(ans) && !optsArr.includes(ans.toString())) {
+                optsArr[0] = ans;
+            }
+
+            // 最終處理：全部轉成字串並洗牌打亂
+            optsArr = optsArr.map(String);
+            shuffleArray(optsArr);
+
+            return { 
+                text: text, 
+                answer: ans.toString(), 
+                options: optsArr 
+            };
+        }
     
     function generateMathOptions(correctAnswer) { 
         let opts = new Set([correctAnswer]); 
@@ -1386,11 +1692,23 @@ function updateNSTUI() {
 </script>
 <div id="nst-menu" class="nst-screen">
         <h1 style="color: #00ff66; text-shadow: 0 0 10px rgba(0, 255, 102, 0.3);">數字急轉彎 (測試版)</h1>
-        <button onclick="startNST(4000)">🌱 初級 (電腦每 4 秒檢視)</button>
-        <button onclick="startNST(2000)">⭐ 中級 (電腦每 2 秒檢視)</button>
-        <button onclick="startNST(1000)">🔥 高級 (電腦每 1 秒檢視)</button>
-        <button onclick="startNST(500)">⚡ 達人 (電腦每 0.5 秒檢視)</button>
-        <button class="back-btn" onclick="nstNavTo('main-lobby')">返回主目錄</button>
+        
+        <div class="nst-menu-row">
+            <button class="nst-btn-small" onclick="startNSTTutorial()" style="border-color: #f1c40f; color: #f1c40f;">🎓 單人教學模式 (無電腦對戰)</button>
+        </div>
+
+        <div class="nst-menu-row">
+            <button class="nst-btn-small" onclick="startNST(4000)">🌱 初級</button>
+            <button class="nst-btn-small" onclick="startNST(2000)">⭐ 中級</button>
+            <button class="nst-btn-small" onclick="startNST(1000)">🔥 高級</button>
+            <button class="nst-btn-small" onclick="startNST(500)">⚡ 達人</button>
+        </div>
+
+        <div class="nst-menu-row nst-custom-row">
+            <button class="nst-btn-small" onclick="startCustomNSTPopup()" style="border-color: #b026ff; color: #b026ff;">⚙️ 自訂難度</button>
+        </div>
+        
+        <button class="back-btn" onclick="nstNavTo('main-lobby')" style="margin-top: 20px;">返回主目錄</button>
     </div>
 
     <div id="nst-game" class="nst-screen">
