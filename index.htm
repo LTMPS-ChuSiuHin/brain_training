@@ -769,17 +769,17 @@ nstAiAction = function() {
         <h1 id="diff-title">選擇難度</h1>
         
         <div id="diff-buttons-standard" style="display: none;">
-            <button onclick="startGame('beginner')">🌱 初級 </button>
-            <button onclick="startGame('intermediate')">⭐ 中級 </button>
-            <button onclick="startGame('advanced')">🔥 高級 </button>
-            <button onclick="startGame('elite')">👑 達人 </button>
+            <button onclick="startGame('beginner')">🌱 初級 (較慢/簡單)</button>
+            <button onclick="startGame('intermediate')">⭐ 中級 (正常/中等)</button>
+            <button onclick="startGame('advanced')">🔥 高級 (快速/困難)</button>
+            <button onclick="startGame('elite')">👑 達人 (極限/地獄)</button>
         </div>
 
         <div id="diff-buttons-math" style="display: none;">
-            <button onclick="startGame('beginner')">🌱 20以內加減</button>
-            <button onclick="startGame('intermediate')">⭐ 兩位數加減</button>
+            <button onclick="startGame('beginner')">🌱 10以內加減</button>
+            <button onclick="startGame('intermediate')">⭐ 20以內加減</button>
             <button onclick="startGame('advanced')">🔥 乘法</button>
-            <button onclick="startGame('elite')">👑 三位數加減</button>
+            <button onclick="startGame('elite')">👑 四則混合計算</button>
         </div>
         
         <div id="diff-buttons-reaction" style="display: none;">
@@ -806,10 +806,10 @@ nstAiAction = function() {
         </div>
 
         <div id="diff-buttons-highcard" style="display: none;">
-            <button onclick="startGame('beginner')">🌱 初級 (三局兩勝)</button>
-            <button onclick="startGame('intermediate')">⭐ 中級 (三局兩勝)</button>
-            <button onclick="startGame('advanced')">🔥 高級 (五局三勝)</button>
-            <button onclick="startGame('elite')">👑 達人 (五局三勝)</button>
+            <button onclick="startGame('beginner')">🌱 初級 (1-10)</button>
+            <button onclick="startGame('intermediate')">⭐ 中級 (1-20)</button>
+            <button onclick="startGame('advanced')">🔥 高級 (11-50)</button>
+            <button onclick="startGame('elite')">👑 達人 (30-99)</button>
         </div>
 
         <hr style="border:1px dashed #4a5568; margin: 25px 0;">
@@ -971,34 +971,34 @@ nstAiAction = function() {
     }
     
     function selectGame(mode) {
-            currentGameMode = mode;
-            // 隱藏所有難度選單
-            document.getElementById('diff-buttons-standard').style.display = 'none';
-            document.getElementById('diff-buttons-math').style.display = 'none'; // 加入這行
-            document.getElementById('diff-buttons-reaction').style.display = 'none';
-            document.getElementById('diff-buttons-direction').style.display = 'none';
-            document.getElementById('diff-buttons-vocab').style.display = 'none';
-            document.getElementById('diff-buttons-make24').style.display = 'none';
-            document.getElementById('diff-buttons-highcard').style.display = 'none';
+    currentGameMode = mode;
+    // 隱藏所有難度選單
+    document.getElementById('diff-buttons-standard').style.display = 'none';
+    document.getElementById('diff-buttons-math').style.display = 'none'; // 加入這行
+    document.getElementById('diff-buttons-reaction').style.display = 'none';
+    document.getElementById('diff-buttons-direction').style.display = 'none';
+    document.getElementById('diff-buttons-vocab').style.display = 'none';
+    document.getElementById('diff-buttons-make24').style.display = 'none';
+    document.getElementById('diff-buttons-highcard').style.display = 'none';
 
-            // 根據模式顯示對應選單
-            if (mode === 'math') {
-                document.getElementById('diff-buttons-math').style.display = 'block';
-            } else if (mode === 'dice' || mode === 'flash-memory' || mode === 'random-code-memory') {
-                document.getElementById('diff-buttons-standard').style.display = 'block';
-            } else if (mode === 'reaction-match') {
-                document.getElementById('diff-buttons-reaction').style.display = 'block';
-            } else if (mode === 'reaction-direction') {
-                document.getElementById('diff-buttons-direction').style.display = 'block';
-            } else if (mode === 'vocab-memory') {
-                document.getElementById('diff-buttons-vocab').style.display = 'block';
-            } else if (mode === 'make24') {
-                document.getElementById('diff-buttons-make24').style.display = 'block';
-            } else if (mode === 'highcard') {
-                document.getElementById('diff-buttons-highcard').style.display = 'block';
-            }
-            nav('screen-difficulty');
+    // 根據模式顯示對應選單
+    if (mode === 'math') {
+        document.getElementById('diff-buttons-math').style.display = 'block';
+    } else if (mode === 'dice' || mode === 'flash-memory' || mode === 'random-code-memory') {
+        document.getElementById('diff-buttons-standard').style.display = 'block';
+    } else if (mode === 'reaction-match') {
+        document.getElementById('diff-buttons-reaction').style.display = 'block';
+    } else if (mode === 'reaction-direction') {
+        document.getElementById('diff-buttons-direction').style.display = 'block';
+    } else if (mode === 'vocab-memory') {
+        document.getElementById('diff-buttons-vocab').style.display = 'block';
+    } else if (mode === 'make24') {
+        document.getElementById('diff-buttons-make24').style.display = 'block';
+    } else if (mode === 'highcard') {
+        document.getElementById('diff-buttons-highcard').style.display = 'block';
     }
+    nav('screen-difficulty');
+}
 
     function startGame(difficulty) {
         if (difficulty === 'ranked') {
@@ -1540,64 +1540,13 @@ nstAiAction = function() {
     function generateDiceQuestion(diff) { let count = (diff === 'beginner') ? 2 : (diff === 'intermediate') ? 3 : (diff === 'advanced') ? 4 : 5; let total = 0, str = '<span class="dice-display">'; for (let i = 0; i < count; i++) { let roll = Math.floor(Math.random() * 6) + 1; total += roll; str += diceFaces[roll - 1] + ' '; } return { text: str + '</span>', answer: total }; }
     
     function generateMathQuestion(diff) {
-    let a, b, c, ans, text;
-    
-    if (diff === 'beginner') {
-        // 初級：20以內加減
-        if (Math.random() > 0.5) {
-            // 加法 (保證總和不大於20)
-            a = Math.floor(Math.random() * 19) + 1; 
-            b = Math.floor(Math.random() * (20 - a)) + 1;
-            ans = a + b;
-            text = `${a} + ${b}`;
-        } else {
-            // 減法 (保證不出現負數)
-            a = Math.floor(Math.random() * 20) + 1;
-            b = Math.floor(Math.random() * a) + 1;
-            ans = a - b;
-            text = `${a} - ${b}`;
-        }
-    } else if (diff === 'intermediate') {
-        // 中級：兩位數加減
-        if (Math.random() > 0.5) {
-            // 兩位數加法 (10~99)
-            a = Math.floor(Math.random() * 90) + 10;
-            b = Math.floor(Math.random() * 90) + 10;
-            ans = a + b;
-            text = `${a} + ${b}`;
-        } else {
-            // 兩位數減法 (確保 a>=b 且皆為兩位數)
-            a = Math.floor(Math.random() * 90) + 10;
-            b = Math.floor(Math.random() * 90) + 10;
-            if (b > a) { let temp = a; a = b; b = temp; } // 交換確保大減小
-            ans = a - b;
-            text = `${a} - ${b}`;
-        }
-    } else if (diff === 'advanced') {
-        // 高級：乘法 (2~12 乘法表)
-        a = Math.floor(Math.random() * 11) + 2; 
-        b = Math.floor(Math.random() * 11) + 2; 
-        ans = a * b;
-        text = `${a} × ${b}`;
-    } else {
-        // 達人：三位數加減
-        if (Math.random() > 0.5) {
-            // 三位數加法 (100~999)
-            a = Math.floor(Math.random() * 900) + 100;
-            b = Math.floor(Math.random() * 900) + 100;
-            ans = a + b;
-            text = `${a} + ${b}`;
-        } else {
-            // 三位數減法 (確保 a>=b 且皆為三位數)
-            a = Math.floor(Math.random() * 900) + 100;
-            b = Math.floor(Math.random() * 900) + 100;
-            if (b > a) { let temp = a; a = b; b = temp; } // 交換確保大減小
-            ans = a - b;
-            text = `${a} - ${b}`;
-        }
+        let a, b, c, ans, text;
+        if (diff === 'beginner') { if (Math.random() > 0.5) { a = Math.floor(Math.random() * 9) + 1; b = Math.floor(Math.random() * (10 - a)) + 1; ans = a + b; text = `${a} + ${b}`; } else { a = Math.floor(Math.random() * 10) + 1; b = Math.floor(Math.random() * a) + 1; ans = a - b; text = `${a} - ${b}`; } } 
+        else if (diff === 'intermediate') { if (Math.random() > 0.5) { a = Math.floor(Math.random() * 19) + 1; b = Math.floor(Math.random() * (20 - a)) + 1; ans = a + b; text = `${a} + ${b}`; } else { a = Math.floor(Math.random() * 20) + 1; b = Math.floor(Math.random() * a) + 1; ans = a - b; text = `${a} - ${b}`; } } 
+        else if (diff === 'advanced') { a = Math.floor(Math.random() * 8) + 2; b = Math.floor(Math.random() * 8) + 2; ans = a * b; text = `${a} × ${b}`; } 
+        else { let type = Math.floor(Math.random() * 3); if (type === 0) { a = Math.floor(Math.random() * 8) + 2; b = Math.floor(Math.random() * 8) + 2; c = Math.floor(Math.random() * 20) + 1; ans = a * b + c; text = `${a} × ${b} + ${c}`; } else if (type === 1) { b = Math.floor(Math.random() * 8) + 2; let k = Math.floor(Math.random() * 9) + 1; a = b * k; c = Math.floor(Math.random() * 10) + 1; ans = k + c; text = `${a} ÷ ${b} + ${c}`; } else { a = Math.floor(Math.random() * 20) + 1; b = Math.floor(Math.random() * 8) + 2; c = Math.floor(Math.random() * 8) + 2; ans = a + b * c; text = `${a} + ${b} × ${c}`; } }
+        return { text: text, answer: ans };
     }
-    return { ans, text };
-}
     
     function generateMathOptions(correctAnswer) { 
         let opts = new Set([correctAnswer]); 
