@@ -768,20 +768,19 @@ nstAiAction = function() {
     <div id="screen-difficulty" class="screen">
         <h1 id="diff-title">選擇難度</h1>
         
-        <div id="diff-buttons-standard">
-            <button onclick="startGame('beginner')">🌱 初級</button>
-            <button onclick="startGame('intermediate')">⭐ 中級</button>
-            <button onclick="startGame('advanced')">🔥 高級</button>
-            <button onclick="startGame('elite')">👑 達人</button>
+        <div id="diff-buttons-standard" style="display: none;">
+            <button onclick="startGame('beginner')">🌱 初級 </button>
+            <button onclick="startGame('intermediate')">⭐ 中級 </button>
+            <button onclick="startGame('advanced')">🔥 高級 </button>
+            <button onclick="startGame('elite')">👑 達人 </button>
         </div>
-        
+
         <div id="diff-buttons-math" style="display: none;">
-                <button onclick="startGame('math_beginner')">🌱 10以內加減</button>
-                <button onclick="startGame('math_intermediate')">⭐ 20以內加減</button>
-                <button onclick="startGame('math_advanced')">🔥 兩位數相加或相減</button>
-                <button onclick="startGame('math_elite')">👑 乘數表</button>
-                <button onclick="startGame('math_division')" style="border-color: #00f0ff; color: #00f0ff;">➗ 除法(包含餘數)</button>
-            </div>
+            <button onclick="startGame('beginner')">🌱 20以內加減</button>
+            <button onclick="startGame('intermediate')">⭐ 兩位數加減</button>
+            <button onclick="startGame('advanced')">🔥 乘法</button>
+            <button onclick="startGame('elite')">👑 三位數加減</button>
+        </div>
         
         <div id="diff-buttons-reaction" style="display: none;">
             <button onclick="startGame('beginner')">🌱 初級 (綜合圖案)</button>
@@ -807,10 +806,10 @@ nstAiAction = function() {
         </div>
 
         <div id="diff-buttons-highcard" style="display: none;">
-            <button onclick="startGame('beginner')">🌱 初級 (1-10)</button>
-            <button onclick="startGame('intermediate')">⭐ 中級 (1-20)</button>
-            <button onclick="startGame('advanced')">🔥 高級 (11-50)</button>
-            <button onclick="startGame('elite')">👑 達人 (30-99)</button>
+            <button onclick="startGame('beginner')">🌱 初級 (三局兩勝)</button>
+            <button onclick="startGame('intermediate')">⭐ 中級 (三局兩勝)</button>
+            <button onclick="startGame('advanced')">🔥 高級 (五局三勝)</button>
+            <button onclick="startGame('elite')">👑 達人 (五局三勝)</button>
         </div>
 
         <hr style="border:1px dashed #4a5568; margin: 25px 0;">
@@ -973,22 +972,20 @@ nstAiAction = function() {
     
     function selectGame(mode) {
             currentGameMode = mode;
+            // 隱藏所有難度選單
             document.getElementById('diff-buttons-standard').style.display = 'none';
+            document.getElementById('diff-buttons-math').style.display = 'none'; // 加入這行
             document.getElementById('diff-buttons-reaction').style.display = 'none';
             document.getElementById('diff-buttons-direction').style.display = 'none';
             document.getElementById('diff-buttons-vocab').style.display = 'none';
             document.getElementById('diff-buttons-make24').style.display = 'none';
             document.getElementById('diff-buttons-highcard').style.display = 'none';
-            
-            // 加入新的 diff-buttons-math 隱藏邏輯
-            let mathDiffMenu = document.getElementById('diff-buttons-math');
-            if(mathDiffMenu) mathDiffMenu.style.display = 'none';
 
-            if (mode === 'dice' || mode === 'flash-memory' || mode === 'random-code-memory') {
-                document.getElementById('diff-buttons-standard').style.display = 'block';
-            } else if (mode === 'math') {
-                // 速心算顯示專屬選單
+            // 根據模式顯示對應選單
+            if (mode === 'math') {
                 document.getElementById('diff-buttons-math').style.display = 'block';
+            } else if (mode === 'dice' || mode === 'flash-memory' || mode === 'random-code-memory') {
+                document.getElementById('diff-buttons-standard').style.display = 'block';
             } else if (mode === 'reaction-match') {
                 document.getElementById('diff-buttons-reaction').style.display = 'block';
             } else if (mode === 'reaction-direction') {
@@ -1001,7 +998,7 @@ nstAiAction = function() {
                 document.getElementById('diff-buttons-highcard').style.display = 'block';
             }
             nav('screen-difficulty');
-        }
+    }
 
     function startGame(difficulty) {
         if (difficulty === 'ranked') {
@@ -1543,122 +1540,64 @@ nstAiAction = function() {
     function generateDiceQuestion(diff) { let count = (diff === 'beginner') ? 2 : (diff === 'intermediate') ? 3 : (diff === 'advanced') ? 4 : 5; let total = 0, str = '<span class="dice-display">'; for (let i = 0; i < count; i++) { let roll = Math.floor(Math.random() * 6) + 1; total += roll; str += diceFaces[roll - 1] + ' '; } return { text: str + '</span>', answer: total }; }
     
     function generateMathQuestion(diff) {
-            let a, b, op, ans, text;
-            let optsArr = [];
-            let fakes = new Set(); // 利用 Set 自動排除重複的選項
-
-            // 輔助函數：用於將選項陣列洗牌打亂
-            const shuffleArray = (arr) => arr.sort(() => Math.random() - 0.5);
-
-            if (diff === 'math_beginner') { 
-                // 10以內加減 (例子: 5+7=12 -> 11, 12, 13, 14)
-                op = Math.random() < 0.5 ? '+' : '-';
-                if (op === '+') {
-                    a = Math.floor(Math.random() * 9) + 1;
-                    b = Math.floor(Math.random() * (10 - a)) + 1;
-                } else {
-                    a = Math.floor(Math.random() * 10) + 1;
-                    b = Math.floor(Math.random() * a) + 1;
-                }
-                ans = op === '+' ? a + b : a - b;
-                text = `${a} ${op} ${b}`;
-                
-                // 誘答機制：產生包含答案的 4 個連續數字
-                let offset = Math.floor(Math.random() * 4); // 讓答案隨機出現在4個連續數字的哪個位置
-                let start = Math.max(0, ans - offset); // 確保不出現負數選項
-                for (let i = 0; i < 4; i++) fakes.add(start + i);
-                
-            } else if (diff === 'math_intermediate') { 
-                // 20以內加減 (例子: 16-9=7 -> 7, 8, 9, 10)
-                op = Math.random() < 0.5 ? '+' : '-';
-                if (op === '+') {
-                    a = Math.floor(Math.random() * 19) + 1; 
-                    b = Math.floor(Math.random() * (20 - a)) + 1; 
-                } else {
-                    a = Math.floor(Math.random() * 11) + 10; 
-                    b = Math.floor(Math.random() * a) + 1;   
-                }
-                ans = op === '+' ? a + b : a - b;
-                text = `${a} ${op} ${b}`;
-                
-                // 誘答機制：同樣產生包含答案的 4 個連續數字
-                let offset = Math.floor(Math.random() * 4);
-                let start = Math.max(0, ans - offset);
-                for (let i = 0; i < 4; i++) fakes.add(start + i);
-                
-            } else if (diff === 'math_advanced') { 
-                // 兩位數加減 (例子: 35+46=81 -> 81, 82, 91, 92)
-                op = Math.random() < 0.5 ? '+' : '-';
-                a = Math.floor(Math.random() * 90) + 10; // 10-99
-                b = Math.floor(Math.random() * 90) + 10; // 10-99
-                if (op === '-' && a < b) [a, b] = [b, a]; // 確保大減小
-                ans = op === '+' ? a + b : a - b;
-                text = `${a} ${op} ${b}`;
-                
-                // 誘答機制：答案, 個位+1(或-1), 十位+1(或-1), 十位和個位皆+1
-                let sign = Math.random() < 0.5 ? 1 : -1;
-                if (ans + sign * 11 < 0) sign = 1; // 避免出現負數選項
-                
-                fakes.add(ans);
-                fakes.add(ans + sign * 1);
-                fakes.add(ans + sign * 10);
-                fakes.add(ans + sign * 11);
-                
-            } else if (diff === 'math_elite') { 
-                // 乘數表 (例子: 6x7=42 -> 36, 42, 48, 49)
-                a = Math.floor(Math.random() * 8) + 2; // 2-9
-                b = Math.floor(Math.random() * 8) + 2; // 2-9
-                ans = a * b;
-                text = `${a} × ${b}`;
-                
-                // 誘答機制：a*(b-1) , a*b , a*(b+1) , (a+1)*b
-                fakes.add(ans);
-                if (b > 1) fakes.add(a * (b - 1));
-                fakes.add(a * (b + 1));
-                fakes.add((a + 1) * b);
-                
-                // 防呆：如果剛好是 2x2 或其他情況導致重複選項不足4個，補上其他合理錯算
-                if (a > 1) fakes.add((a - 1) * b);
-                fakes.add((a + 1) * (b + 1));
-                
-            } else if (diff === 'math_division') { 
-                // 除法(有餘數) (例子: 45/8=5...5 -> 4...5, 5...5, 5...6, 6...5)
-                let divisor = Math.floor(Math.random() * 8) + 2; // 2-9
-                let quotient = Math.floor(Math.random() * 8) + 2; // 2-9
-                let remainder = Math.floor(Math.random() * (divisor - 1)) + 1; // 1 到 divisor-1
-                
-                let dividend = quotient * divisor + remainder; 
-                text = `${dividend} ➗ ${divisor}`;
-                ans = `${quotient}...${remainder}`;
-                
-                // 誘答機制：直接放入答案，以及變化商數或餘數的選項
-                fakes.add(ans);
-                if (quotient > 1) fakes.add(`${quotient - 1}...${remainder}`); // 商少1
-                fakes.add(`${quotient}...${remainder + 1}`);                   // 餘多1 (直接加1，當作學生的常見失誤選項)
-                fakes.add(`${quotient + 1}...${remainder}`);                   // 商多1
-                
-                // 防呆：萬一不足4個 (極罕見)，補上餘數少1的選項
-                if (remainder > 1) fakes.add(`${quotient}...${remainder - 1}`);
-            }
-
-            // 取前 4 個獨立選項
-            optsArr = Array.from(fakes).slice(0, 4);
-            
-            // 安全機制：保證正確答案一定包含在裡面
-            if (!optsArr.includes(ans) && !optsArr.includes(ans.toString())) {
-                optsArr[0] = ans;
-            }
-
-            // 最終處理：全部轉成字串並洗牌打亂
-            optsArr = optsArr.map(String);
-            shuffleArray(optsArr);
-
-            return { 
-                text: text, 
-                answer: ans.toString(), 
-                options: optsArr 
-            };
+    let a, b, c, ans, text;
+    
+    if (diff === 'beginner') {
+        // 初級：20以內加減
+        if (Math.random() > 0.5) {
+            // 加法 (保證總和不大於20)
+            a = Math.floor(Math.random() * 19) + 1; 
+            b = Math.floor(Math.random() * (20 - a)) + 1;
+            ans = a + b;
+            text = `${a} + ${b}`;
+        } else {
+            // 減法 (保證不出現負數)
+            a = Math.floor(Math.random() * 20) + 1;
+            b = Math.floor(Math.random() * a) + 1;
+            ans = a - b;
+            text = `${a} - ${b}`;
         }
+    } else if (diff === 'intermediate') {
+        // 中級：兩位數加減
+        if (Math.random() > 0.5) {
+            // 兩位數加法 (10~99)
+            a = Math.floor(Math.random() * 90) + 10;
+            b = Math.floor(Math.random() * 90) + 10;
+            ans = a + b;
+            text = `${a} + ${b}`;
+        } else {
+            // 兩位數減法 (確保 a>=b 且皆為兩位數)
+            a = Math.floor(Math.random() * 90) + 10;
+            b = Math.floor(Math.random() * 90) + 10;
+            if (b > a) { let temp = a; a = b; b = temp; } // 交換確保大減小
+            ans = a - b;
+            text = `${a} - ${b}`;
+        }
+    } else if (diff === 'advanced') {
+        // 高級：乘法 (2~12 乘法表)
+        a = Math.floor(Math.random() * 11) + 2; 
+        b = Math.floor(Math.random() * 11) + 2; 
+        ans = a * b;
+        text = `${a} × ${b}`;
+    } else {
+        // 達人：三位數加減
+        if (Math.random() > 0.5) {
+            // 三位數加法 (100~999)
+            a = Math.floor(Math.random() * 900) + 100;
+            b = Math.floor(Math.random() * 900) + 100;
+            ans = a + b;
+            text = `${a} + ${b}`;
+        } else {
+            // 三位數減法 (確保 a>=b 且皆為三位數)
+            a = Math.floor(Math.random() * 900) + 100;
+            b = Math.floor(Math.random() * 900) + 100;
+            if (b > a) { let temp = a; a = b; b = temp; } // 交換確保大減小
+            ans = a - b;
+            text = `${a} - ${b}`;
+        }
+    }
+    return { ans, text };
+}
     
     function generateMathOptions(correctAnswer) { 
         let opts = new Set([correctAnswer]); 
